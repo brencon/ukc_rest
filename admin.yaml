@@ -1,0 +1,1493 @@
+---
+swagger: "2.0"
+info:
+  description: "The Unbound Key Control (\"UKC\") Administration API enables management of UKC configuration\
+    \ and objects.\n\n# Authentication\nMost UKC API operations require an authorization\
+    \ context and user permissions. Users are identified by an authentication token\
+    \ attached to the request headers.\n## Certificate Authentication\nDepending on\
+    \ UKC server setup, a request to the API may require a client certificate. \
+    The certificate identifies the server or application connecting with\
+    \ the UKC server. In UKC terms, this server is denoted as the UKC Client.\n\nSuch certificates\
+    \ can be generated using the UKC CLI or UI tools, as well as by the Administration\
+    \ API.\n\nRefer to the *UKC Users Guide* for further details on configuring\
+    \ client certificate.\n## Basic Authentication\n\
+    \ UKC also supports user authentication with the *Basic*\
+    \ authentication scheme. The *Basic* HTTP authentication scheme is defined in\
+    \ RFC 7617, which transmits credentials as user/password pairs, encoded using\
+    \ base64 in the HTTP authorization header.\nThe user ID can include the required\
+    \ partition in the format `username@partitionId:password`.\nThe user partition can\
+    \ be excluded from the credentials if a client certificate is used. In such a case,\
+    \ the partition is set by the partition that the client is registered with.\n## Authentication\
+    \ Failure (unauthorized)\nIn case an operation is unauthorized, the status code HTTP 401 \
+    \ will be returned with the `WWW-Authenticate` header.\n# Partitioning\n\
+    UKC objects are organized into partitions. Partitioning allows namespacing and\
+    \ access control to objects by configuring users with roles per partition.\n\nThe\
+    \ objects contained in a partition are: Users, Clients, Keys, Certificates, and\
+    \ Secrets\n## Permissions\nPartitions have the following properties:\n- Any partition can have many users who can access\
+    \ its objects.\n- A partition user can have one of two security roles:\n  - \
+    \ Security Officer (\"so\") - Can perform all operations on the partition objects including\
+    \ administration tasks, such as adding, modifying and deleting objects.\n  - User - Can only\
+    \ perform cryptographic operations with the partition objects, such as sign and\
+    \ verify, and also edit keys, certificates, and secrets.\n## Root Partition\n\
+    The default built-in partition for an UKC cluster is called `root` and is created\
+    \ automatically when setting up a new UKC cluster. The `root` partition contains\
+    \ all other partitions.\n## Partition Hierarchy\n- __Parent partition__\n  Any\
+    \ partition _except_ the root partition has the root partition as its parent partition.\n\
+    - __Permission inheritance__\nRoot access permissions can be configured to\
+    \ be _inherited_ from the root partition. For example, a user `rootSO` which\
+    \ is an SO on the `root` partition, would also have SO permissions on `partitionA`\
+    \ if `partitionA` is configured to inherit permissions from `root`.\n  __Note:__\
+    \ By default, access permissions are not inherited from the root partition. \
+    \ To use permission inheritance, it should be configured explicitly.\n##\
+    \ Default Partition Context\nFor every request the _default partition_ is\
+    \ the home partition of the connected user.\nFor example:\n  - `so@root` - the\
+    \ default partition is the root partition.\n  - `so@partitionA` - the default\
+    \ partition is partitionA.\n\nIf a user of the root partition is executing\
+    \ an operation on an inherited partition, the partition context should be set\
+    \ using the query parameter *partition*, which is availble for all relevant requests.\n\
+    # Object IDs\nMany operations require an object ID as part of the resource URI.\
+    \ Objects IDs can be one of an object __UUID__ where applicable, which is a\
+    \ server generated ID that is unique per object type.\n__Note__: Objects of\
+    \ different types can have the same UUID. For example, a user and a key, which is\
+    \ due to the fact that UUID's are unique only per object type.\n# Quorum\nThe UKC\
+    \ can be configured to require quorum approval for certain operations. If\
+    \ the operation you are executing requires quorum approval, the HTTP result is 202 (ACCEPTED)\
+    \ and a quorum job object.\n\nUse the Jobs API in order to manage approvals for\
+    \ different jobs.\n# Common Errors\nAny API call can result in one of the following\
+    \ general HTTP codes:\n- 500 - General server error.\n- 404 - Resource not found.\
+    \ Verify that the URL exists.\n- 401 - Unauthorized."
+  version: "1.0.0"
+  title: "UKC Admin API"
+  termsOfService: ""
+  contact: {}
+tags:
+- name: "Authentication"
+- name: "Clients"
+- name: "General"
+- name: "Jobs"
+- name: "Partitions"
+- name: "System"
+- name: "Users"
+schemes:
+- "https"
+paths:
+  /api/v1/ca.cer:
+    get:
+      tags:
+      - "General"
+      summary: "Return UKC root CA certificate"
+      description: "Download the root CA certificate of UKC"
+      operationId: "getCaCert"
+      produces:
+      - "application/x-x509-ca-cert"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "file"
+      security:
+      - basicAuth: []
+  /api/v1/clients:
+    get:
+      tags:
+      - "Clients"
+      summary: "List clients"
+      description: "Return a list of clients registered with the partition"
+      operationId: "listClient"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Client"
+      security:
+      - basicAuth: []
+    post:
+      tags:
+      - "Clients"
+      summary: "Create a new client and return its activation code"
+      description: "Create a new client and return its activation code"
+      operationId: "createClient"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "New Client"
+        required: false
+        schema:
+          $ref: "#/definitions/NewClient"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        201:
+          description: "New client created successfully"
+          schema:
+            $ref: "#/definitions/ActivationCode"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+        409:
+          description: "Object already exists"
+      security:
+      - basicAuth: []
+  /api/v1/clients/with-cert:
+    post:
+      tags:
+      - "Clients"
+      summary: "Create a new client and return its certificate"
+      description: "Create a new client and return its certificate"
+      operationId: "createClientWithCertificate"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      - "application/x-pkcs12"
+      - "application/x-x509-user-cert"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "New Client"
+        required: false
+        schema:
+          $ref: "#/definitions/NewClientWithCertificate"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        201:
+          description: "New client created successfully"
+          schema:
+            type: "string"
+            format: "binary"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+        409:
+          description: "Object already exists"
+      security:
+      - basicAuth: []
+  /api/v1/clients/{clientId}:
+    get:
+      tags:
+      - "Clients"
+      summary: "Get details of an existing client"
+      description: "Return details of a client"
+      operationId: "getClient"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "clientId"
+        in: "path"
+        description: "Client ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Client"
+      security:
+      - basicAuth: []
+    delete:
+      tags:
+      - "Clients"
+      summary: "Delete a client"
+      description: "Delete provided client"
+      operationId: "deleteClient"
+      parameters:
+      - name: "clientId"
+        in: "path"
+        description: "Client ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "Client deleted successfully."
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/health:
+    get:
+      tags:
+      - "General"
+      summary: "Check if the UKC server is alive and functioning properly"
+      description: "Return health status of the system, determine if it is usable.\
+        \ As long as the HTTP return code is OK, the system is usable."
+      operationId: "getHealth"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+      security:
+      - basicAuth: []
+  /api/v1/info:
+    get:
+      tags:
+      - "General"
+      summary: "Return system information"
+      description: "Return system information, including version and supported capabilities. If authentication\
+        \ is provided, returns the allowed operations for the logged-in user."
+      operationId: "getSystemInfo"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/SystemInfo"
+      security:
+      - basicAuth: []
+  /api/v1/jobs/my/status:
+    get:
+      tags:
+      - "Jobs"
+      summary: "Get the status of pending quorum requests"
+      description: ""
+      operationId: "getQuorumStatus"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/QuorumStatus"
+      security:
+      - basicAuth: []
+  /api/v1/jobs/quorum:
+    get:
+      tags:
+      - "Jobs"
+      summary: "Get a list of pending quorum jobs"
+      description: "The list includes all pending jobs for all users"
+      operationId: "getQuorumJobs"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/jobs/{jobId}:
+    get:
+      tags:
+      - "Jobs"
+      summary: "Get job data"
+      description: "Current job status and details"
+      operationId: "getQuorumJob"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "jobId"
+        in: "path"
+        description: "Job ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+    delete:
+      tags:
+      - "Jobs"
+      summary: "Delete a job"
+      description: "Cancel the job approval process and execution"
+      operationId: "deleteQuorumJob"
+      parameters:
+      - name: "jobId"
+        in: "path"
+        description: "Job ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/jobs/{jobId}/approve:
+    post:
+      tags:
+      - "Jobs"
+      summary: "Approve a pending quorum job"
+      description: ""
+      operationId: "approveJob"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "jobId"
+        in: "path"
+        description: "Job ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/jobs/{jobId}/execute:
+    post:
+      tags:
+      - "Jobs"
+      summary: "Execute an approved quorum job"
+      description: ""
+      operationId: "executeJob"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "jobId"
+        in: "path"
+        description: "Job ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/me/password:
+    put:
+      tags:
+      - "Authentication"
+      summary: "Change the password of the current user"
+      description: "Both current and new password should be provided"
+      operationId: "changePassword"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "New and existing password"
+        required: false
+        schema:
+          $ref: "#/definitions/NewAndExistingPassword"
+      responses:
+        201:
+          description: "Password changed successfully"
+        400:
+          description: "New password does not comply with password policy rules"
+      security:
+      - basicAuth: []
+  /api/v1/partitions:
+    get:
+      tags:
+      - "Partitions"
+      summary: "Get a list of partitions"
+      description: "Available for root users only"
+      operationId: "listPartitions"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Partition"
+      security:
+      - basicAuth: []
+    post:
+      tags:
+      - "Partitions"
+      summary: "Create a new partition"
+      description: "Create a new logical partition. Can optionally create a default\
+        \ client certificate for the new partition."
+      operationId: "createPartition"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/x-pkcs12"
+      - "application/x-x509-user-cert"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The new partition"
+        required: false
+        schema:
+          $ref: "#/definitions/NewPartition"
+      responses:
+        201:
+          description: "Partition created successfully. First client certificate is\
+            \ returned"
+        409:
+          description: "Object already exists"
+      security:
+      - basicAuth: []
+  /api/v1/partitions/{partitionId}:
+    delete:
+      tags:
+      - "Partitions"
+      summary: "Delete a partition"
+      description: "Deletes a partition. The partition should not contain any keys\
+        \ or clients in order to be deleted"
+      operationId: "deletePartition"
+      parameters:
+      - name: "partitionId"
+        in: "path"
+        description: "The ID of the partition to delete. The partition name can be\
+          \ used as the ID."
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Partition deleted successfully"
+      security:
+      - basicAuth: []
+  /api/v1/partitions/{partitionId}/settings:
+    get:
+      tags:
+      - "Partitions"
+      summary: "Get a list of configuration parameters for a partition"
+      description: "Get all settings for a partition"
+      operationId: "getPartitionSettings"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "path"
+        description: "Partition name of the target partition"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/KeyValueEntry"
+      security:
+      - basicAuth: []
+  /api/v1/partitions/{partitionId}/settings/{settingKey}:
+    put:
+      tags:
+      - "Partitions"
+      summary: "Update one or more partition configuration parameters"
+      description: "Use this method to change settings for the partition"
+      operationId: "updatePartitionSetting"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "path"
+        required: true
+        type: "string"
+      - name: "settingKey"
+        in: "path"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "body"
+        description: "Setting value"
+        required: false
+        schema:
+          type: "string"
+      responses:
+        200:
+          description: "OK"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/random:
+    get:
+      tags:
+      - "General"
+      summary: "Return random bytes from the UKC server"
+      description: "The UKC random number generator is combined from different entropy\
+        \ sources of the different servers in the UKC cluster. By default, returns 32 bytes,\
+        \ unless size is specified"
+      operationId: "generateRandom"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "size"
+        in: "query"
+        description: "Size (in bytes) of random bytes to return"
+        required: true
+        type: "integer"
+        maximum: 1024
+        minimum: 32
+        format: "int32"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/RandomEntropyBytes"
+      security:
+      - basicAuth: []
+  /api/v1/random/entropy-bytes:
+    put:
+      tags:
+      - "General"
+      summary: "Add random bytes to the UKC entropy source"
+      description: "Different clients can add entropy to the server. Collecting entropy\
+        \ from the clients can enhance the strength of the UKC random number generator.\
+        \ This function only adds entropy, i.e. if the provided value has no entropy,\
+        \ it will not harm the generator quality"
+      operationId: "addRandomEntropyBytes"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Random bytes"
+        required: false
+        schema:
+          $ref: "#/definitions/RandomEntropyBytes"
+      responses:
+        200:
+          description: "OK"
+      security:
+      - basicAuth: []
+  /api/v1/self.cer:
+    get:
+      tags:
+      - "General"
+      summary: "Return a specific server certificate"
+      description: "Download this specific server certificate. Used for registering\
+        \ new servers."
+      operationId: "selfCertGet"
+      produces:
+      - "application/x-x509-user-cert"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "file"
+      security:
+      - basicAuth: []
+  /api/v1/servers/new/auxiliary:
+    get:
+      tags:
+      - "System"
+      summary: "Get new auxiliary server certificate"
+      description: "Get new auxiliary server certificate, which is used for approval of adding a new auxiliary server."
+      operationId: "getNewAuxiliary"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "host"
+        in: "query"
+        description: "Auxiliary host"
+        required: true
+        type: "string"
+      - name: "port"
+        in: "query"
+        description: "Auxiliary port"
+        required: false
+        type: "integer"
+        format: "int32"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/NewServer"
+      security:
+      - basicAuth: []
+    post:
+      tags:
+      - "System"
+      summary: "Add a new auxiliary server"
+      description: "Add a new auxiliary server and optionally verify the server certificate"
+      operationId: "addAuxServer"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The new auxiliary"
+        required: false
+        schema:
+          $ref: "#/definitions/NewServer"
+      - name: "force"
+        in: "query"
+        description: "Force adding the new server even if server certificate is not\
+          \ provided and cannot be verified"
+        required: false
+        type: "boolean"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/NewServer"
+        201:
+          description: "Auxiliary server added successfully"
+          schema:
+            $ref: "#/definitions/NewServer"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/servers/new/pair:
+    get:
+      tags:
+      - "System"
+      summary: "Get the new server pair certificates"
+      description: "Use it to validate and approve a new pair"
+      operationId: "getNewPair"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "ep_host"
+        in: "query"
+        description: "Entry point host"
+        required: true
+        type: "string"
+      - name: "ep_port"
+        in: "query"
+        description: "Entry point port"
+        required: false
+        type: "integer"
+        format: "int32"
+      - name: "partner_host"
+        in: "query"
+        description: "Partner host"
+        required: true
+        type: "string"
+      - name: "partner_port"
+        in: "query"
+        description: "Partner port"
+        required: false
+        type: "integer"
+        format: "int32"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/NewPair"
+      security:
+      - basicAuth: []
+    post:
+      tags:
+      - "System"
+      summary: "Add a new crypto server pair"
+      description: "Optionally validate the server's certificates"
+      operationId: "addServerPair"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "New pair"
+        required: false
+        schema:
+          $ref: "#/definitions/NewPair"
+      - name: "force"
+        in: "query"
+        description: "Force addition of the pair even if servers certificates are\
+          \ not provided"
+        required: false
+        type: "boolean"
+      responses:
+        201:
+          description: "Pair added successfully"
+          schema:
+            $ref: "#/definitions/NewPair"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/servers/{serverId}:
+    get:
+      tags:
+      - "System"
+      summary: "Get server information"
+      description: "Can ask for detailed information"
+      operationId: "getServer"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "serverId"
+        in: "path"
+        description: "The identifier of the server is its URL (escaped)"
+        required: true
+        type: "string"
+      - name: "detailed"
+        in: "query"
+        description: "Provide detailed information"
+        required: false
+        type: "boolean"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Server"
+      security:
+      - basicAuth: []
+    delete:
+      tags:
+      - "System"
+      summary: "Remove a server or server pair from the UKC cluster"
+      description: "Removes an Auxiliary server or server pair from UKC cluster. A\
+        \ server pair is treated as one unit, identified by the host of its Entry Point\
+        \ server."
+      operationId: "deleteServer"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "serverId"
+        in: "path"
+        description: "The identifier of the server is its URL. In case of server\
+          \ pair, this should be the host of the Entry Point server"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Server deleted"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/system/settings:
+    get:
+      tags:
+      - "System"
+      summary: "Get UKC system configuration parameters"
+      description: "Returns a list of key-value entries which represent the configuration\
+        \ parameters for the UKC system"
+      operationId: "getSettings"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/KeyValueEntry"
+      security:
+      - basicAuth: []
+  /api/v1/system/settings/{settingKey}:
+    put:
+      tags:
+      - "System"
+      summary: "Sets one or more system configuration parameters"
+      description: "Sets the value for a system configuration parameter"
+      operationId: "setSettings"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "settingKey"
+        in: "path"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "body"
+        description: "Setting value"
+        required: false
+        schema:
+          type: "string"
+      responses:
+        200:
+          description: "OK"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+      security:
+      - basicAuth: []
+  /api/v1/topology:
+    get:
+      tags:
+      - "System"
+      summary: "Get UKC cluster topology including server status"
+      description: "Use this API to view system status for all servers"
+      operationId: "getTopology"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "detailed"
+        in: "query"
+        description: "Detailed"
+        required: false
+        type: "boolean"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/Topology"
+      security:
+      - basicAuth: []
+  /api/v1/users:
+    get:
+      tags:
+      - "Users"
+      summary: "List all users in a partition"
+      description: "Return a list of all users in a partition"
+      operationId: "listUser"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/User"
+      security:
+      - basicAuth: []
+    post:
+      tags:
+      - "Users"
+      summary: "Create a new user"
+      description: "Create a new user in a given partition"
+      operationId: "createUser"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "New User"
+        required: false
+        schema:
+          $ref: "#/definitions/NewUser"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        201:
+          description: "User created successfully"
+        202:
+          description: "ACCEPTED"
+          schema:
+            $ref: "#/definitions/Job"
+        409:
+          description: "Object already exists"
+      security:
+      - basicAuth: []
+  /api/v1/users/{userId}:
+    get:
+      tags:
+      - "Users"
+      summary: "Get details of an existing user"
+      description: "Return details of a user"
+      operationId: "getUser"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "userId"
+        in: "path"
+        description: "User ID to look for"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            $ref: "#/definitions/User"
+      security:
+      - basicAuth: []
+    delete:
+      tags:
+      - "Users"
+      summary: "Delete a user"
+      description: ""
+      operationId: "deleteUser"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "userId"
+        in: "path"
+        description: "User ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "User deleted successfully."
+      security:
+      - basicAuth: []
+  /api/v1/users/{userId}/resetPassword:
+    put:
+      tags:
+      - "Users"
+      summary: "Reset user password"
+      description: "Reset user password. SO users are permitted to apply it to other\
+        \ users in the partition"
+      operationId: "resetUserPassword"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Password"
+        required: false
+        schema:
+          $ref: "#/definitions/Password"
+      - name: "userId"
+        in: "path"
+        description: "User ID"
+        required: true
+        type: "string"
+      - name: "partitionId"
+        in: "query"
+        description: "Partition ID"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "User password reset successfully"
+        400:
+          description: "New password does not comply with password policy rules"
+      security:
+      - basicAuth: []
+securityDefinitions:
+  basicAuth:
+    type: "basic"
+definitions:
+  ActivationCode:
+    type: "object"
+    required:
+    - "value"
+    properties:
+      value:
+        type: "string"
+        example: "123456"
+        description: "Client activation code"
+        minLength: 1
+    description: "ActivationCode"
+  Client:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        example: "client-name"
+        description: "Client name"
+        readOnly: true
+      partition:
+        type: "string"
+        example: "codeSign"
+        readOnly: true
+      activationStatus:
+        type: "string"
+        description: "Client activation status"
+        readOnly: true
+        enum:
+        - "ACTIVATED"
+        - "PENDING"
+      activationType:
+        type: "string"
+        description: "Client activation type"
+        readOnly: true
+        enum:
+        - "CERTIFICATE_REQUEST"
+        - "ACTIVATION_CODE"
+        - "CERTIFICATE_DOWNLOAD"
+        - "EXTERNAL"
+      lastUpdatedAt:
+        type: "string"
+        description: "Last update time for this client record"
+        readOnly: true
+      failedActivationCounter:
+        type: "integer"
+        format: "int32"
+        description: "Number of failed retries to use client activation code"
+        readOnly: true
+      isActivationLocked:
+        type: "boolean"
+        readOnly: true
+    description: "A UKC new client"
+  Job:
+    type: "object"
+    properties:
+      initiator:
+        type: "string"
+        example: "so@root"
+        readOnly: true
+      id:
+        type: "string"
+        example: "389323ee-3588-416e-94bd-f93ca815762e"
+        readOnly: true
+      title:
+        type: "string"
+        readOnly: true
+      opName:
+        type: "string"
+        example: "PARTITION_CONFIG_SET "
+        readOnly: true
+      createdAt:
+        type: "string"
+        readOnly: true
+      expiresAt:
+        type: "string"
+        readOnly: true
+      opParams:
+        type: "array"
+        readOnly: true
+        items:
+          $ref: "#/definitions/KeyValueEntry"
+      response:
+        type: "string"
+        readOnly: true
+      approvedBy:
+        type: "array"
+        readOnly: true
+        items:
+          type: "string"
+      status:
+        type: "string"
+        readOnly: true
+        enum:
+        - "PENDING_APPROVAL"
+        - "PENDING_EXECUTION"
+        - "DONE"
+        - "EXPIRED"
+      totalRequiredApprovals:
+        type: "integer"
+        format: "int32"
+        readOnly: true
+    description: "An asynchrounous job"
+  KeyValueEntry:
+    type: "object"
+    required:
+    - "key"
+    - "value"
+    properties:
+      key:
+        type: "string"
+        minLength: 1
+      value:
+        type: "string"
+    description: "Key value entry"
+  NewAndExistingPassword:
+    type: "object"
+    required:
+    - "existingPassword"
+    - "newPassword"
+    properties:
+      existingPassword:
+        type: "string"
+        description: "The existing user password"
+        minLength: 1
+      newPassword:
+        type: "string"
+        description: "The new password"
+        minLength: 1
+    description: "New and Existing Password"
+  NewClient:
+    type: "object"
+    required:
+    - "name"
+    properties:
+      name:
+        type: "string"
+        example: "client-name"
+        description: "Client name"
+        minLength: 1
+  NewClientWithCertificate:
+    type: "object"
+    required:
+    - "name"
+    properties:
+      name:
+        type: "string"
+        example: "client-name"
+        description: "Client name"
+        minLength: 1
+      alternativeNames:
+        type: "array"
+        example: "{client-ip,client-name}"
+        description: "Client alternative names"
+        items:
+          type: "string"
+      pfxPassword:
+        type: "string"
+        description: "The new client PFX password"
+      csr:
+        type: "string"
+        example: "MIIByjCCATMCAQAwgYkxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlh\n\
+          MRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRMwEQYDVQQKEwpHb29nbGUgSW5jMR8w\nHQYDVQQLExZJbmZvcm1hdGlvbiBUZWNobm9sb2d5MRcwFQYDVQQDEw53d3cuZ29v\n\
+          Z2xlLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEApZtYJCHJ4VpVXHfV\nIlstQTlO4qC03hjX+ZkPyvdYd1Q4+qbAeTwXmCUKYHThVRd5aXSqlPzyIBwieMZr\n\
+          WFlRQddZ1IzXAlVRDWwAo60KecqeAXnnUK+5fXoTI/UgWshre8tJ+x/TMHaQKR/J\ncIWPhqaQhsJuzZbvAdGA80BLxdMCAwEAAaAAMA0GCSqGSIb3DQEBBQUAA4GBAIhl\n\
+          4PvFq+e7ipARgI5ZM+GZx6mpCz44DTo0JkwfRDf+BtrsaC0q68eTf2XhYOsq4fkH\nQ0uA0aVog3f5iJxCa3Hp5gxbJQ6zV6kJ0TEsuaaOhEko9sdpCoPOnRBm2i/XRD2D\n\
+          6iNh8f8z0ShGsFqjDgFHyF3o+lUyj+UC6H1QW7bn"
+        description: "The new client base64 encoded certificate request"
+  NewPair:
+    type: "object"
+    required:
+    - "entryPoint"
+    - "partner"
+    properties:
+      entryPoint:
+        description: "Entry Point"
+        $ref: "#/definitions/NewServer"
+      partner:
+        description: "Partner"
+        $ref: "#/definitions/NewServer"
+    description: "A UKC pair"
+  NewPartition:
+    type: "object"
+    required:
+    - "name"
+    - "newClient"
+    - "soPassword"
+    properties:
+      name:
+        type: "string"
+        description: "The new partition name"
+        minLength: 1
+      soPassword:
+        type: "string"
+        description: "The new partition SO password"
+        minLength: 1
+      newClient:
+        description: "The initial partition client"
+        $ref: "#/definitions/NewClientWithCertificate"
+    description: "A UKC Partition"
+  NewServer:
+    type: "object"
+    required:
+    - "host"
+    properties:
+      host:
+        type: "string"
+        example: "ip or fqdn"
+        description: "The server host"
+        minLength: 1
+      port:
+        type: "integer"
+        format: "int32"
+        example: 8443
+        description: "The server port"
+      newServerCertificate:
+        description: "The new server certificate"
+        $ref: "#/definitions/NewServerCertificate"
+    description: "A new UKC server"
+  NewServerCertificate:
+    type: "object"
+    properties:
+      certificate:
+        type: "string"
+        description: "The server certificate encoded in base64"
+      certificateFingerprint:
+        type: "string"
+        description: "The server certificate fingerprint"
+      certificateInfo:
+        type: "string"
+        description: "The server certificate info"
+    description: "New server certificate data"
+  NewUser:
+    type: "object"
+    required:
+    - "name"
+    - "role"
+    properties:
+      password:
+        type: "string"
+        description: "The user password"
+      name:
+        type: "string"
+        example: "john_a"
+        minLength: 1
+      description:
+        type: "string"
+        description: "The user description"
+      role:
+        type: "string"
+        description: "The user role"
+        enum:
+        - "SO"
+        - "USER"
+    description: "A new UKC user"
+  Pair:
+    type: "object"
+    properties:
+      entryPoint:
+        description: "Entry Point"
+        readOnly: true
+        $ref: "#/definitions/Server"
+      partner:
+        description: "Partner"
+        readOnly: true
+        $ref: "#/definitions/Server"
+    description: "A UKC pair"
+  Partition:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        example: "root"
+        readOnly: true
+    description: "A partition is used as a logical container for security objects\
+      \ like keys and certificates"
+  Password:
+    type: "object"
+    required:
+    - "value"
+    properties:
+      value:
+        type: "string"
+        minLength: 1
+      password:
+        type: "string"
+        example: "Password2!"
+        description: "New user password"
+        readOnly: true
+    description: "A password"
+  QuorumStatus:
+    type: "object"
+    properties:
+      pendingApproval:
+        type: "integer"
+        format: "int32"
+        example: 2
+        readOnly: true
+      pendingExecution:
+        type: "integer"
+        format: "int32"
+        example: 0
+        readOnly: true
+    description: "Quorum job status"
+  RandomEntropyBytes:
+    type: "object"
+    required:
+    - "entropy"
+    properties:
+      entropy:
+        type: "string"
+        description: "base64 encoded entropy bytes"
+        minLength: 1
+    description: "Random entropy bytes"
+  Server:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "The server name"
+        readOnly: true
+      host:
+        type: "string"
+        description: "The server host"
+        readOnly: true
+      role:
+        type: "string"
+        description: "The server role"
+        readOnly: true
+        enum:
+        - "ENTRYPOINT"
+        - "PARTNER"
+        - "AUXILIARY"
+      status:
+        type: "string"
+        description: "The server status"
+        readOnly: true
+        enum:
+        - "RUNNING"
+        - "STOPPED"
+      os:
+        type: "string"
+        description: "The server operation system"
+        readOnly: true
+      cores:
+        type: "integer"
+        format: "int32"
+        description: "The server amount of cores"
+        readOnly: true
+      cpuLoadPrecents:
+        type: "integer"
+        format: "int32"
+        description: "The server CPU load"
+        readOnly: true
+      freeMemMegaBytes:
+        type: "integer"
+        format: "int32"
+        description: "The server free megabytes"
+        readOnly: true
+      totalMemMegaBytes:
+        type: "integer"
+        format: "int32"
+        description: "The server total megabytes"
+        readOnly: true
+    description: "A UKC server"
+  SystemInfo:
+    type: "object"
+    properties:
+      version:
+        type: "string"
+        example: "2.0.1"
+        description: "UKC version"
+        readOnly: true
+      allowedOperations:
+        type: "array"
+        example: "{Create,Destroy,Sign,...}"
+        description: "A list of operation IDs that represent the operations that\
+          \ the current user is allowed to use. Should match the operation IDs as\
+          \ specified in this document"
+        readOnly: true
+        items:
+          type: "string"
+      allowedPartitions:
+        type: "array"
+        example: "{part1,parr2,...}"
+        description: "Set of partitions which the user can connect with"
+        readOnly: true
+        items:
+          type: "string"
+    description: "Include information on UKC server"
+  Topology:
+    type: "object"
+    properties:
+      pairs:
+        type: "array"
+        description: "Pairs"
+        readOnly: true
+        items:
+          $ref: "#/definitions/Pair"
+      auxiliaries:
+        type: "array"
+        description: "Auxiliaries"
+        readOnly: true
+        items:
+          $ref: "#/definitions/Server"
+    description: "UKC servers topology"
+  User:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        example: "john_a"
+        readOnly: true
+      partition:
+        type: "string"
+        example: "codeSign"
+        readOnly: true
+      description:
+        type: "string"
+        readOnly: true
+      role:
+        type: "string"
+        readOnly: true
+        enum:
+        - "SO"
+        - "USER"
+    description: "A UKC user"
+# Added by API Auto Mocking Plugin
+host: virtserver.swaggerhub.com
+basePath: /Philamericus/ukc_admin/1.0.0
