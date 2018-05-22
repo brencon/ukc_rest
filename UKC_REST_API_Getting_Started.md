@@ -8,7 +8,7 @@ The UKC REST API uses [Swagger/OpenAPI](https://swagger.io) open source technolo
 You need the following prerequisites:
 + [Node.js](https://nodejs.org) 8.0.0 or above
 + A working UKC server. See [installation instructions here](http://unboundtech.com)
-+ UKC Admin API yaml file [admin.yaml](./admin.yaml)
++ UKC Admin API YAML file [admin.yaml](./admin.yaml)
 + [Java](https://java.com/en/download/) version 8 or above
 
 ## Generate the Language API
@@ -62,3 +62,5 @@ As mentioned before, this guide uses JavaScript as the client language, but you 
    ```
    Test script completed successfully
    ```
+
+Note: You can use the same procedure for the UKC Crypto API YAML file [crypto.yaml](./crypto.yaml).
