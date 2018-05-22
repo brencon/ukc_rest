@@ -7,7 +7,7 @@ The UKC REST API uses [Swagger/OpenAPI](https://swagger.io) open source technolo
 ## Prerequisites
 You need the following prerequisites:
 + [Node.js](https://nodejs.org) 8.0.0 or above
-+ A working UKC server. See [installation instructions here](http://unboundtech.com)
++ A working UKC server. Refer to the *Unbound Key Control User Guide* for installation instructions.
 + UKC Admin API YAML file [admin.yaml](./admin.yaml)
 + [Java](https://java.com/en/download/) version 8 or above
 
