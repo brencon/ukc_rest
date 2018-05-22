@@ -12,7 +12,7 @@ You need the following prerequisites:
 + [Java](https://java.com/en/download/) version 8 or above
 
 ## Generate the Language API
-In this step, we use the [Swagger code generator](https://github.com/swagger-api/swagger-codegen) to generate code for easily interacting with the UKC server through the REST API, saving us from all the boilerplate work of manually coding the HTTP interaction layer ourselves. 
+In this step, we use the [Swagger code generator](https://github.com/swagger-api/swagger-codegen) to generate code for easy interaction with the UKC server through the REST API, saving us from all the tedious manual work of coding the HTTP interaction layer ourselves. 
 
 As mentioned before, this guide uses JavaScript as the client language, but you can easily generate code for other languages. Refer to [here](https://github.com/swagger-api/swagger-codegen/blob/master/README.md) for more information.
 
