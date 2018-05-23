@@ -1288,5 +1288,5 @@ definitions:
         $ref: "#/definitions/Signature"
     description: "Includes data used for signature verification"
 # Added by API Auto Mocking Plugin
-host: virtserver.swaggerhub.com
-basePath: /Philamericus/ukc_crypto/1.0.0
+host: ukcep.your_domain
+basePath: /api/v1
