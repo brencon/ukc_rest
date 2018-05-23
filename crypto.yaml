@@ -60,7 +60,7 @@ info:
   title: "UKC Crypto API"
   termsOfService: ""
   contact: 
-    name: "UKC Administration API"
+    name: "UKC Crypto API"
 tags:
 - name: "Keys"
 schemes:
