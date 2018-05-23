@@ -1489,5 +1489,5 @@ definitions:
         - "USER"
     description: "A UKC user"
 # Added by API Auto Mocking Plugin
-host: virtserver.swaggerhub.com
-basePath: /Philamericus/ukc_admin/1.0.0
+host: ukcep.your_domain
+basePath: /api/v1
