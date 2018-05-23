@@ -6,16 +6,15 @@
 const UkcAdminApi = require('ukc_admin_api');
 const defaultClient = UkcAdminApi.ApiClient.instance;
 // set server base url here
-defaultClient.basePath = 'https://ec2-52-15-224-136.us-east-2.compute.amazonaws.com:8443';
+defaultClient.basePath = 'https://your.ukc.server.url:port'; // make sure you use your UKC url and port
 
 // This is required if your server is using a self signed certificate
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
-const DEFAULT_PASSWORD = 'Password1!';
-
 // Configure HTTP basic authorization: basicAuth
 const basicAuth = defaultClient.authentications['basicAuth'];
-basicAuth.username = 'so@root';
+const DEFAULT_PASSWORD = 'MyPassword'; // use your password here
+basicAuth.username = 'so@root'; // use your username and partition here. so@root is a built-in default user for root
 basicAuth.password = DEFAULT_PASSWORD;
 
 const generalApi = new UkcAdminApi.GeneralApi()
