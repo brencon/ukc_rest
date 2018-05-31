@@ -1490,4 +1490,4 @@ definitions:
     description: "A UKC user"
 # Added by API Auto Mocking Plugin
 host: ukcep.your_domain
-basePath: /api/v1
+basePath: 
