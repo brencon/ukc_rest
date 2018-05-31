@@ -1289,4 +1289,4 @@ definitions:
     description: "Includes data used for signature verification"
 # Added by API Auto Mocking Plugin
 host: ukcep.your_domain
-basePath: /api/v1
+basePath: 
